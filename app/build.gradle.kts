@@ -17,7 +17,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "com.marchcode.evaluateuitest.HiltTestRunner"
+        testInstrumentationRunner = "com.marchcode.evaluateuitest.runner.HiltTestRunner"
     }
 
     buildTypes {
