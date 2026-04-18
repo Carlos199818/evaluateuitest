@@ -21,3 +21,20 @@ local.properties
 .idea/misc.xml
 
 .idea/
+.gradle/
+build/
+
+# caches/local gradle homes
+.gradle-user-home/
+.android-user-home/
+
+# generated / binary
+*.class
+*.jar
+*.lock
+*.bin
+
+# android debug keystore
+debug.keystore
+debug.keystore.lock
+
