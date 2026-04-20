@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marchcode.evaluateuitest.data.model.Task
 import com.marchcode.evaluateuitest.data.repository.TaskRepository
+import com.marchcode.evaluateuitest.utils.EspressoIdlingResource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,6 +50,7 @@ class TaskDetailViewModel @Inject constructor(
      * Loads task details by ID
      */
     fun loadTask(taskId: String) {
+        EspressoIdlingResource.increment()
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -63,6 +65,7 @@ class TaskDetailViewModel @Inject constructor(
                 _errorMessage.value = e.message ?: "Failed to load task"
             } finally {
                 _isLoading.value = false
+                EspressoIdlingResource.decrement()
             }
         }
     }
