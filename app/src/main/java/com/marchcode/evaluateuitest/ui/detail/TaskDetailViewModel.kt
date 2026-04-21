@@ -76,20 +76,25 @@ class TaskDetailViewModel @Inject constructor(
     fun onToggleFavorite() {
         val currentTask = _task.value ?: return
 
+        EspressoIdlingResource.increment()
         viewModelScope.launch {
             try {
                 val result = repository.toggleFavorite(currentTask.id)
                 if (result.isSuccess) {
-                    _snackbarMessage.value = if (currentTask.isFavorite) {
-                        "Removed from favorites"
-                    } else {
+                    val updatedTask = currentTask.copy(isFavorite = !currentTask.isFavorite)
+                    _task.value = updatedTask
+                    _snackbarMessage.value = if (updatedTask.isFavorite) {
                         "Added to favorites"
+                    } else {
+                        "Removed from favorites"
                     }
                 } else {
                     _snackbarMessage.value = "Failed to update favorite status"
                 }
             } catch (e: Exception) {
                 _snackbarMessage.value = "Failed to update favorite status"
+            } finally {
+                EspressoIdlingResource.decrement()
             }
         }
     }
@@ -109,6 +114,7 @@ class TaskDetailViewModel @Inject constructor(
     fun onDeleteClicked() {
         val currentTask = _task.value ?: return
 
+        EspressoIdlingResource.increment()
         viewModelScope.launch {
             try {
                 val result = repository.deleteTask(currentTask.id)
@@ -119,6 +125,8 @@ class TaskDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _snackbarMessage.value = "Failed to delete task"
+            } finally {
+                EspressoIdlingResource.decrement()
             }
         }
     }

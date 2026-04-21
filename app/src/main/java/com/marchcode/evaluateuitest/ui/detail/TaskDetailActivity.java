@@ -52,7 +52,6 @@ public class TaskDetailActivity extends AppCompatActivity {
         setupClickListeners();
         observeViewModel();
 
-        // Load task from intent
         String taskId = getIntent().getStringExtra(EXTRA_TASK_ID);
         if (taskId != null) {
             viewModel.loadTask(taskId);
@@ -69,7 +68,6 @@ public class TaskDetailActivity extends AppCompatActivity {
         ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (view, windowInsets) -> {
             Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
 
-            // Apply top inset to AppBarLayout
             binding.appBarLayoutDetail.setPadding(
                 binding.appBarLayoutDetail.getPaddingLeft(),
                 insets.top,
@@ -77,7 +75,6 @@ public class TaskDetailActivity extends AppCompatActivity {
                 binding.appBarLayoutDetail.getPaddingBottom()
             );
 
-            // Apply bottom inset to ScrollView content
             binding.scrollViewDetail.setPadding(
                 binding.scrollViewDetail.getPaddingLeft(),
                 binding.scrollViewDetail.getPaddingTop(),
@@ -113,16 +110,13 @@ public class TaskDetailActivity extends AppCompatActivity {
      * Observes ViewModel LiveData
      */
     private void observeViewModel() {
-        // Observe task data
         viewModel.getTask().observe(this, this::displayTask);
 
-        // Observe loading state
         viewModel.getIsLoading().observe(this, isLoading -> {
             binding.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
             binding.layoutContent.setVisibility(isLoading ? View.GONE : View.VISIBLE);
         });
 
-        // Observe error message
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null && !error.isEmpty()) {
                 binding.layoutError.setVisibility(View.VISIBLE);
@@ -131,14 +125,12 @@ public class TaskDetailActivity extends AppCompatActivity {
             }
         });
 
-        // Observe snackbar messages
         viewModel.getSnackbarMessage().observe(this, message -> {
             if (message != null && !message.isEmpty()) {
                 Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_SHORT).show();
             }
         });
 
-        // Observe navigation events
         viewModel.getNavigationEvent().observe(this, event -> {
             if (event != null) {
                 if (event instanceof TaskDetailViewModel.TaskDetailEvent.NavigateToEdit) {
@@ -159,15 +151,12 @@ public class TaskDetailActivity extends AppCompatActivity {
     private void displayTask(Task task) {
         if (task == null) return;
 
-        // Set title and description
         binding.textDetailTitle.setText(task.getTitle());
         binding.textDetailDescription.setText(task.getDescription());
 
-        // Set category and priority
         binding.textDetailCategory.setText("Category: " + task.getCategory().getDisplayName());
         binding.textDetailPriority.setText("Priority: " + task.getPriority().getDisplayName());
 
-        // Set priority color
         int priorityColor;
         if (task.getPriority() == TaskPriority.HIGH) {
             priorityColor = ContextCompat.getColor(this, R.color.priority_high);
@@ -178,7 +167,6 @@ public class TaskDetailActivity extends AppCompatActivity {
         }
         binding.textDetailPriority.setTextColor(priorityColor);
 
-        // Set due date
         if (task.getDueDate() != null && !task.getDueDate().isEmpty()) {
             binding.textDetailDueDate.setText("Due: " + task.getDueDate());
             binding.textDetailDueDate.setVisibility(View.VISIBLE);
@@ -186,9 +174,8 @@ public class TaskDetailActivity extends AppCompatActivity {
             binding.textDetailDueDate.setVisibility(View.GONE);
         }
 
-        // Set completion status
         binding.textDetailStatus.setText(
-            task.isCompleted() ? "Status: Completed ✓" : "Status: Pending"
+            task.isCompleted() ? "Status: Completed" : "Status: Pending"
         );
         binding.textDetailStatus.setTextColor(
             ContextCompat.getColor(
@@ -197,9 +184,9 @@ public class TaskDetailActivity extends AppCompatActivity {
             )
         );
 
-        // Set favorite button
-        int favoriteIcon = task.isFavorite() ?
-            R.drawable.ic_favorite_filled : R.drawable.ic_favorite_outline;
+        int favoriteIcon = task.isFavorite()
+            ? R.drawable.ic_favorite_filled
+            : R.drawable.ic_favorite_outline;
         binding.buttonToggleFavorite.setImageResource(favoriteIcon);
         binding.buttonToggleFavorite.setContentDescription(
             task.isFavorite() ? "Remove from favorites" : "Add to favorites"
@@ -239,7 +226,6 @@ public class TaskDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload task when returning from edit screen
         String taskId = getIntent().getStringExtra(EXTRA_TASK_ID);
         if (taskId != null) {
             viewModel.loadTask(taskId);

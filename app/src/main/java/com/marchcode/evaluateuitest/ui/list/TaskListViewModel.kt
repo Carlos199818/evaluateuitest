@@ -7,12 +7,15 @@ import androidx.lifecycle.viewModelScope
 import com.marchcode.evaluateuitest.data.model.Task
 import com.marchcode.evaluateuitest.data.model.UiState
 import com.marchcode.evaluateuitest.data.repository.TaskRepository
+import com.marchcode.evaluateuitest.utils.EspressoIdlingResource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +28,8 @@ import javax.inject.Inject
 class TaskListViewModel @Inject constructor(
     private val repository: TaskRepository
 ) : ViewModel() {
+
+    private var isSearchSyncPending = false
 
     // UI State for task list
     private val _uiState = MutableStateFlow<UiState<List<Task>>>(UiState.Loading)
@@ -59,11 +64,7 @@ class TaskListViewModel @Inject constructor(
                         _uiState.value = UiState.Error(e.message ?: "Unknown error occurred")
                     }
                     .collect { tasks ->
-                        if (tasks.isEmpty()) {
-                            _uiState.value = UiState.Empty
-                        } else {
-                            _uiState.value = UiState.Success(tasks)
-                        }
+                        updateUiStateForTasks(filterTasksByQuery(tasks, _searchQuery.value))
                     }
             } catch (e: Exception) {
                 _uiState.value = UiState.Error(e.message ?: "Failed to load tasks")
@@ -78,7 +79,7 @@ class TaskListViewModel @Inject constructor(
         viewModelScope.launch {
             searchQuery
                 .debounce(300) // Debounce to avoid excessive filtering
-                .collect { query ->
+                .collectLatest { query ->
                     filterTasks(query)
                 }
         }
@@ -87,23 +88,17 @@ class TaskListViewModel @Inject constructor(
     /**
      * Filters tasks based on search query
      */
-    private fun filterTasks(query: String) {
-        viewModelScope.launch {
-            _uiState.value = UiState.Loading
-            try {
-                repository.searchTasks(query)
-                    .catch { e ->
-                        _uiState.value = UiState.Error(e.message ?: "Search failed")
-                    }
-                    .collect { tasks ->
-                        if (tasks.isEmpty()) {
-                            _uiState.value = UiState.Empty
-                        } else {
-                            _uiState.value = UiState.Success(tasks)
-                        }
-                    }
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error(e.message ?: "Search failed")
+    private suspend fun filterTasks(query: String) {
+        _uiState.value = UiState.Loading
+        try {
+            val tasks = repository.searchTasks(query).first()
+            updateUiStateForTasks(tasks)
+        } catch (e: Exception) {
+            _uiState.value = UiState.Error(e.message ?: "Search failed")
+        } finally {
+            if (isSearchSyncPending) {
+                isSearchSyncPending = false
+                EspressoIdlingResource.decrement()
             }
         }
     }
@@ -112,6 +107,11 @@ class TaskListViewModel @Inject constructor(
      * Updates search query
      */
     fun onSearchQueryChanged(query: String) {
+        if (_searchQuery.value == query) return
+        if (!isSearchSyncPending) {
+            EspressoIdlingResource.increment()
+            isSearchSyncPending = true
+        }
         _searchQuery.value = query
     }
 
@@ -119,7 +119,7 @@ class TaskListViewModel @Inject constructor(
      * Clears search query
      */
     fun clearSearch() {
-        _searchQuery.value = ""
+        onSearchQueryChanged("")
     }
 
     /**
@@ -134,9 +134,14 @@ class TaskListViewModel @Inject constructor(
      */
     fun onToggleComplete(taskId: String) {
         viewModelScope.launch {
-            val result = repository.toggleComplete(taskId)
-            if (result.isFailure) {
-                _snackbarMessage.value = "Failed to update task"
+            EspressoIdlingResource.increment()
+            try {
+                val result = repository.toggleComplete(taskId)
+                if (result.isFailure) {
+                    _snackbarMessage.value = "Failed to update task"
+                }
+            } finally {
+                EspressoIdlingResource.decrement()
             }
         }
     }
@@ -165,6 +170,23 @@ class TaskListViewModel @Inject constructor(
         viewModelScope.launch {
             repository.simulateError(false)
             loadTasks()
+        }
+    }
+
+    private fun updateUiStateForTasks(tasks: List<Task>) {
+        if (tasks.isEmpty()) {
+            _uiState.value = UiState.Empty
+        } else {
+            _uiState.value = UiState.Success(tasks)
+        }
+    }
+
+    private fun filterTasksByQuery(tasks: List<Task>, query: String): List<Task> {
+        if (query.isBlank()) return tasks
+
+        return tasks.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                it.description.contains(query, ignoreCase = true)
         }
     }
 }

@@ -138,6 +138,15 @@ class FakeTaskDataSource @Inject constructor() {
     }
 
     /**
+     * Restores the original seed data.
+     * Useful for instrumentation tests that mutate the in-memory list.
+     */
+    fun resetToSeedData() {
+        shouldSimulateError = false
+        _tasks.value = getSampleTasks()
+    }
+
+    /**
      * Provides sample tasks for initial data
      */
     private fun getSampleTasks(): List<Task> {

@@ -8,6 +8,7 @@ import com.marchcode.evaluateuitest.data.model.Task
 import com.marchcode.evaluateuitest.data.model.TaskCategory
 import com.marchcode.evaluateuitest.data.model.TaskPriority
 import com.marchcode.evaluateuitest.data.repository.TaskRepository
+import com.marchcode.evaluateuitest.utils.EspressoIdlingResource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -60,17 +61,22 @@ class TaskFormViewModel @Inject constructor(
     val saveErrorEvent: LiveData<String> = _saveErrorEvent
 
     private var currentTaskId: String? = null
+    private var currentTaskIsCompleted: Boolean = false
+    private var currentTaskIsFavorite: Boolean = false
 
     /**
      * Loads task for editing
      */
     fun loadTask(taskId: String) {
+        EspressoIdlingResource.increment()
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val task = repository.getTask(taskId)
                 if (task != null) {
                     currentTaskId = task.id
+                    currentTaskIsCompleted = task.isCompleted
+                    currentTaskIsFavorite = task.isFavorite
                     _title.value = task.title
                     _description.value = task.description
                     _category.value = task.category
@@ -82,6 +88,7 @@ class TaskFormViewModel @Inject constructor(
                 _saveErrorEvent.value = "Failed to load task"
             } finally {
                 _isLoading.value = false
+                EspressoIdlingResource.decrement()
             }
         }
     }
@@ -189,6 +196,7 @@ class TaskFormViewModel @Inject constructor(
             return
         }
 
+        EspressoIdlingResource.increment()
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -199,8 +207,8 @@ class TaskFormViewModel @Inject constructor(
                     category = _category.value!!,
                     priority = _priority.value!!,
                     dueDate = _dueDate.value?.takeIf { it.isNotBlank() },
-                    isCompleted = false,
-                    isFavorite = false
+                    isCompleted = if (_isEditMode.value == true) currentTaskIsCompleted else false,
+                    isFavorite = if (_isEditMode.value == true) currentTaskIsFavorite else false
                 )
 
                 val result = if (_isEditMode.value == true) {
@@ -224,6 +232,7 @@ class TaskFormViewModel @Inject constructor(
                 _saveErrorEvent.value = e.message ?: "Failed to save task"
             } finally {
                 _isLoading.value = false
+                EspressoIdlingResource.decrement()
             }
         }
     }
